@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Parlor Scorecard</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @import url('https://googleapis.com');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Arvo', serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #2b1810;
+            color: #ffd700;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+        }
+        .setup-container {
+            width: 100%;
+            max-width: 400px;
+            background: #3d2314;
+            border: 4px solid #f1c40f;
+            padding: 32px;
+            margin-top: 40px;
+            text-align: center;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        h2 {
+            font-family: 'Fredoka One', cursive;
+            margin-bottom: 24px;
+            color: #fff;
+            text-shadow: 2px 2px 0px #1a0f0a;
+            letter-spacing: 1px;
+        }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 8px; color: #f1c40f; font-size: 0.9rem; font-family: 'Fredoka One', cursive; }
+        input {
+            width: 100%;
+            padding: 16px;
+            background: #2b1810;
+            border: 2px solid #f1c40f;
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+            border-radius: 8px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 18px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            font-size: 1.2rem;
+            font-family: 'Fredoka One', cursive;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #7f231c;
+            border-radius: 8px;
+        }
+        .game-container {
+            display: none;
+            width: 100%;
+            max-width: 440px;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header-status {
+            text-align: center;
+            background: #3d2314;
+            border: 3px solid #f1c40f;
+            padding: 16px;
+            font-size: 1.3rem;
+            color: #fff;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 12px;
+        }
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            background: #fffdf6; /* Thick matte vintage paper card stock look */
+            padding: 12px;
+            border: 6px solid #f39c12;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+        .grid-header {
+            text-align: center;
+            font-size: 1.8rem;
+            color: #c0392b;
+            font-family: 'Fredoka One', cursive;
+            padding-bottom: 4px;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: #fffdf6;
+            color: #2c3e50;
+            border: 1px solid #e5e0d8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            cursor: pointer;
+            position: relative;
+        }
+        /* Wet Ink Red Ink Dauber Stamp Overlay */
+        .cell.marked::after {
+            content: '';
+            position: absolute;
+            width: 78%;
+            height: 78%;
+            background: rgba(231, 76, 60, 0.75); /* Translucent fluid ink layer */
+            border-radius: 50%;
+            border: 2px dashed #c0392b;
+            transform: rotate(5deg);
+        }
+        .cell.free-space { background: #f1c40f; color: #2b1810; font-size: 0.75rem; font-family: 'Fredoka One', cursive;}
+        .btn-bingo {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 22px;
+            font-size: 2rem;
+            font-family: 'Fredoka One', cursive;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 0px #7f231c, 0 10px 20px rgba(0,0,0,0.4);
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="setup-container" id="setupScreen">
+        <h2>Grab a Card</h2>
+        <div class="form-group">
+            <label>Table Number Code</label>
+            <input type="number" id="roomInput" pattern="\d*">
+        </div>
+        <div class="form-group">
+            <label>Your Name</label>
+            <input type="text" id="nameInput">
+        </div>
+        <button class="btn-primary" id="joinBtn">SIT DOWN TO PLAY</button>
+    </div>
+
+    <div class="game-container" id="gameScreen">
+        <div class="header-status" id="statusText">Shuffling the machine...</div>
+        <div class="bingo-grid">
+            <div class="grid-header">B</div><div class="grid-header">I</div><div class="grid-header">N</div><div class="grid-header">G</div><div class="grid-header">O</div>
+            <div id="cardCells" style="display: contents;"></div>
+        </div>
+        <button class="btn-bingo" id="bingoBtn">SHOUT BINGO!</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let audioCtx = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('room')) document.getElementById('roomInput').value = urlParams.get('room');
+
+        function playTapSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+        }
+
+        document.getElementById('joinBtn').addEventListener('click', () => {
+            const roomId = document.getElementById('roomInput').value.trim();
+            const playerName = document.getElementById('nameInput').value.trim();
+            if (roomId) socket.emit('join-room', { roomId, playerName });
+        });
+
+        socket.on('game-joined', (data) => {
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            buildCard(data.card);
+        });
+
+        function buildCard(matrix) {
+            const canvas = document.getElementById('cardCells');
+            canvas.innerHTML = "";
+            matrix.forEach(row => {
+                row.forEach(val => {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (val === 0) {
+                        cell.classList.add('free-space', 'marked');
+                        cell.innerText = "FREE";
+                    } else {
+                        cell.innerText = val;
+                        cell.addEventListener('click', () => {
+                            playTapSound();
+                            if (navigator.vibrate) navigator.vibrate(20); // Hearty haptic punch
+                            cell.classList.toggle('marked');
+                        });
+                    }
+                    canvas.appendChild(cell);
+                });
+            });
+        }
+
+        socket.on('number-called', (data) => {
+            document.getElementById('statusText').innerText = `CALLED BALL: ${data.current}`;
+        });
+
+        document.getElementById('bingoBtn').addEventListener('click', () => {
+            socket.emit('claim-bingo', urlParams.get('room') || document.getElementById('roomInput').value);
+        });
+    </script>
+</body>
+</html>

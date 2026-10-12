@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grandma's Bingo Parlor</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @import url('https://googleapis.com');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #2b1810; /* Warm walnut wood brown */
+            background-image: radial-gradient(rgba(0,0,0,0.3) 20%, transparent 80%);
+            color: #f7f1e3;
+            height: 100vh;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            overflow: hidden;
+            font-family: 'Arvo', serif;
+        }
+        /* Cozy Wood Panel Sidebar */
+        .sidebar {
+            background: #3d2314;
+            border-right: 8px solid #1a0f0a;
+            padding: 40px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 10px 0 25px rgba(0,0,0,0.5);
+        }
+        .room-box h2 {
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.1rem;
+            color: #f1c40f; /* Warm butter yellow */
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 0px #1a0f0a;
+        }
+        .room-code {
+            font-family: 'Fredoka One', cursive;
+            font-size: 3.5rem;
+            color: #fff;
+            text-shadow: 2px 3px 0px #1a0f0a;
+            background: #2b1810;
+            padding: 8px 24px;
+            border-radius: 12px;
+            border: 4px solid #f1c40f;
+        }
+        .qr-container {
+            background: #fffdf6;
+            padding: 16px;
+            border-radius: 16px;
+            margin: 20px 0;
+            border: 4px solid #8e44ad; /* Retro knit violet purple */
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 182px;
+            min-width: 182px;
+        }
+        .qr-container img {
+            display: block;
+            border-radius: 4px;
+        }
+        /* Fire TV Remote Focus Button - Retro Push Button Style */
+        .btn-call {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: #fff;
+            border: 3px solid #fff;
+            padding: 22px;
+            font-size: 1.6rem;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 0px #7f231c, 0 12px 20px rgba(0,0,0,0.4);
+        }
+        .btn-call:focus {
+            background: #f1c40f;
+            color: #2b1810;
+            border-color: #fff;
+            transform: scale(1.04);
+            box-shadow: 0 6px 0px #b5930a, 0 12px 30px rgba(241, 196, 15, 0.4);
+        }
+        /* Classic Chalkboard Activity Board */
+        .main-content {
+            display: grid;
+            grid-template-rows: 240px 1fr;
+            padding: 40px;
+            gap: 32px;
+            background: #1c2833; /* Slate chalkboard green-gray */
+            border: 15px solid #3d2314; /* Heavy wooden frame structure */
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        }
+        .top-row {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 32px;
+        }
+        .current-number-box {
+            background: #fffdf6;
+            border: 6px solid #f39c12;
+            border-radius: 50%; /* Traditional heavy wooden ball container */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
+        .current-number-box span {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+        .huge-number {
+            font-family: 'Fredoka One', cursive;
+            font-size: 6rem;
+            color: #2c3e50;
+        }
+        .alert-banner {
+            background: #f1c40f;
+            color: #2b1810;
+            border: 5px dashed #e74c3c;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3.5rem;
+            font-family: 'Fredoka One', cursive;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            animation: shakeAlert 0.4s infinite alternate;
+            display: none;
+        }
+        /* Retro Felt Mat Grid Board */
+        .board-container {
+            background: #145a32; /* Church basement billiard felt green */
+            border-radius: 8px;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            gap: 12px;
+            box-shadow: inset 0 0 35px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .ball {
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            font-weight: 700;
+            border: 2px dashed rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        .ball.called {
+            background: #fffdf6;
+            color: #2c3e50;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+            border: 2px solid #f39c12;
+            transform: scale(1.1);
+        }
+        @keyframes shakeAlert {
+            0% { transform: rotate(-1deg); }
+            100% { transform: rotate(1deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="room-box">
+            <h2>PARLOR TABLE</h2>
+            <div class="room-code" id="roomCode">----</div>
+        </div>
+        <div class="qr-container" id="qrcode">Setting tables...</div>
+        <button class="btn-call" id="callBtn" autofocus>DRAW BALL</button>
+    </div>
+
+    <div class="main-content">
+        <div class="top-row">
+            <div class="current-number-box">
+                <span>CALL OUT</span>
+                <div class="huge-number" id="currentBall">--</div>
+            </div>
+            <div class="alert-banner" id="bingoAlert">🎁 BINGO! WE HAVE A WINNER! 🎁</div>
+        </div>
+        <div class="board-container" id="bingoBoard"></div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentRoomId = null;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playSound(type) {
+            initAudio();
+            if (type === 'draw') {
+                // Heavy hollow plastic cage tumble sound
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'win') {
+                // High pitch brass manual hand bell ring cascade
+                for(let i=0; i<6; i++) {
+                    setTimeout(() => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g); g.connect(audioCtx.destination);
+                        o.type = 'triangle';
+                        o.frequency.setValueAtTime(880, audioCtx.currentTime);
+                        g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2f);
+                        o.start(); o.stop(audioCtx.currentTime + 0.2);
+                    }, i * 120);
+                }
+            }
+        }
+
+        const bingoBoard = document.getElementById('bingoBoard');
+        for (let i = 1; i <= 75; i++) {
+            const ball = document.createElement('div');
+            ball.classList.add('ball');
+            ball.id = `ball-${i}`;
+            ball.innerText = i;
+            bingoBoard.appendChild(ball);
+        }
+
+        socket.emit('create-room');
+        socket.on('room-created', (roomId) => {
+            currentRoomId = roomId;
+            document.getElementById('roomCode').innerText = roomId;
+            
+            const joinUrl = encodeURIComponent(`${window.location.origin}/mobile.html?room=${roomId}`);
+            const qrContainer = document.getElementById('qrcode');
+            // Cloud API generates matching vintage dark brown style QR code layout safely
+            qrContainer.innerHTML = `<img src="https://qrserver.com{joinUrl}&color=3d2314&bgcolor=fffdf6" alt="Scan to Play" width="150" height="150" />`;
+        });
+
+        document.getElementById('callBtn').addEventListener('click', () => {
+            if (currentRoomId) socket.emit('draw-number', currentRoomId);
+            document.getElementById('bingoAlert').style.display = 'none';
+        });
+
+        socket.on('number-called', (data) => {
+            playSound('draw');
