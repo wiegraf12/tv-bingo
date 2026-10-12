@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vegas Bingo Controller</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        @import url('https://googleapis.com');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Ultra', serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #1a0505;
+            color: #ffd700;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+        }
+        .setup-container {
+            width: 100%;
+            max-width: 400px;
+            background: #2d0b0b;
+            border: 3px double #ffd700;
+            padding: 32px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        h2 {
+            margin-bottom: 24px;
+            color: #fff;
+            text-shadow: 0 0 10px #ffd700;
+        }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 8px; color: #ffd700; font-size: 0.9rem; }
+        input {
+            width: 100%;
+            padding: 16px;
+            background: #000;
+            border: 2px solid #ffd700;
+            border-radius: 0px;
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 18px;
+            background: #ffd700;
+            color: #1a0505;
+            border: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #b89600;
+        }
+        .game-container {
+            display: none;
+            width: 100%;
+            max-width: 440px;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header-status {
+            text-align: center;
+            background: #000;
+            border: 2px solid #ffd700;
+            padding: 16px;
+            font-size: 1.2rem;
+            color: #fff;
+        }
+        .bingo-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            background: #0d3a1a; /* Casino Felt Green */
+            padding: 12px;
+            border: 4px double #ffd700;
+            box-shadow: inset 0 0 20px #000;
+        }
+        .grid-header {
+            text-align: center;
+            font-size: 1.6rem;
+            color: #ffd700;
+            text-shadow: 2px 2px 0px #000;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: #fff9e6;
+            color: #1a0505;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+            position: relative;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.2), 0 2px 2px rgba(0,0,0,0.3);
+        }
+        /* Classic Casino Poker Chip Marker Overlay */
+        .cell.marked::after {
+            content: '\$';
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            background: #d41414;
+            color: #fff;
+            border: 3px dashed #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: bold;
+            box-shadow: 0 2px 5px #000;
+        }
+        .cell.free-space { background: #ffd700; font-size: 0.75rem; color: #1a0505; }
+        .btn-bingo {
+            background: linear-gradient(135deg, #ffd700 0%, #ffaa00 100%);
+            color: #1a0505;
+            padding: 22px;
+            font-size: 2rem;
+            border: 2px solid #fff;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #b89600, 0 10px 20px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="setup-container" id="setupScreen">
+        <h2>Vegas Bingo</h2>
+        <div class="form-group">
+            <label>Table / Room Code</label>
+            <input type="number" id="roomInput" pattern="\d*">
+        </div>
+        <div class="form-group">
+            <label>Player Name</label>
+            <input type="text" id="nameInput">
+        </div>
+        <button class="btn-primary" id="joinBtn">ENTER CASINO</button>
+    </div>
+
+    <div class="game-container" id="gameScreen">
+        <div class="header-status" id="statusText">Placing bets...</div>
+        <div class="bingo-grid">
+            <div class="grid-header">B</div><div class="grid-header">I</div><div class="grid-header">N</div><div class="grid-header">G</div><div class="grid-header">O</div>
+            <div id="cardCells" style="display: contents;"></div>
+        </div>
+        <button class="btn-bingo" id="bingoBtn">JACKPOT!</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let audioCtx = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('room')) document.getElementById('roomInput').value = urlParams.get('room');
+
+        function playTapSound() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        document.getElementById('joinBtn').addEventListener('click', () => {
+            const roomId = document.getElementById('roomInput').value.trim();
+            const playerName = document.getElementById('nameInput').value.trim();
+            if (roomId) socket.emit('join-room', { roomId, playerName });
+        });
+
+        socket.on('game-joined', (data) => {
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            buildCard(data.card);
+        });
+
+        function buildCard(matrix) {
+            const canvas = document.getElementById('cardCells');
+            canvas.innerHTML = "";
+            matrix.forEach(row => {
+                row.forEach(val => {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (val === 0) {
+                        cell.classList.add('free-space', 'marked');
+                        cell.innerText = "FREE";
+                    } else {
+                        cell.innerText = val;
+                        cell.addEventListener('click', () => {
+                            playTapSound();
+                            if (navigator.vibrate) navigator.vibrate(15);
+                            cell.classList.toggle('marked');
+                        });
+                    }
+                    canvas.appendChild(cell);
+                });
+            });
+        }
+
+        socket.on('number-called', (data) => {
+            document.getElementById('statusText').innerText = `PULLED: ${data.current}`;
+        });
+
+        document.getElementById('bingoBtn').addEventListener('click', () => {
+            socket.emit('claim-bingo', urlParams.get('room') || document.getElementById('roomInput').value);
+        });
+    </script>
+</body>
+</html>
