@@ -34,14 +34,28 @@ function playSound(type) {
     }
 }
 
-const bingoBoard = document.getElementById('bingoBoard');
-for (let i = 1; i <= 75; i++) {
-    const ball = document.createElement('div');
-    ball.classList.add('ball');
-    ball.id = `ball-${i}`;
-    ball.innerText = i;
-    bingoBoard.appendChild(ball);
+// Helper function to figure out the correct Bingo letter based on standard ranges
+function getBingoLetter(num) {
+    if (num <= 15) return 'B';
+    if (num <= 30) return 'I';
+    if (num <= 45) return 'N';
+    if (num <= 60) return 'G';
+    return 'O';
 }
+
+// Draw the master 75 board mapping elements
+const bingoBoard = document.getElementById('bingoBoard');
+function generateBoardGrid() {
+    bingoBoard.innerHTML = "";
+    for (let i = 1; i <= 75; i++) {
+        const ball = document.createElement('div');
+        ball.classList.add('ball');
+        ball.id = `ball-${i}`;
+        ball.innerText = i;
+        bingoBoard.appendChild(ball);
+    }
+}
+generateBoardGrid();
 
 socket.emit('create-room');
 socket.on('room-created', (roomId) => {
@@ -58,11 +72,26 @@ document.getElementById('callBtn').addEventListener('click', () => {
     document.getElementById('bingoAlert').style.display = 'none';
 });
 
+document.getElementById('resetBtn').addEventListener('click', () => {
+    if (currentRoomId && confirm("Are you sure you want to clear the board and start a new round?")) {
+        socket.emit('reset-game', currentRoomId);
+    }
+});
+
 socket.on('number-called', (data) => {
     playSound('draw');
-    document.getElementById('currentBall').innerText = data.current;
+    
+    // Get the correct letter for the called number
+    const letter = getBingoLetter(data.current);
+    
+    // Combine the letter and number on the main TV ball display (e.g., B-12)
+    document.getElementById('currentBall').innerText = `${letter}-${data.current}`;
+    
+    // Highlight the number on the master background board mapping grid
     const activeBall = document.getElementById(`ball-${data.current}`);
-    if (activeBall) activeBall.classList.add('called');
+    if (activeBall) {
+        activeBall.classList.add('called');
+    }
 });
 
 socket.on('bingo-claimed', (data) => {
@@ -70,4 +99,10 @@ socket.on('bingo-claimed', (data) => {
     const alertBox = document.getElementById('bingoAlert');
     alertBox.innerText = `🎁 ${data.playerName.toUpperCase()} CLAIMS BINGO! 🎁`;
     alertBox.style.display = 'flex';
+});
+
+socket.on('game-was-reset', () => {
+    document.getElementById('currentBall').innerText = '--';
+    document.getElementById('bingoAlert').style.display = 'none';
+    generateBoardGrid();
 });
