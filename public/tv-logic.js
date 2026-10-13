@@ -27,6 +27,7 @@ function playSound(type) {
                 o.type = 'triangle';
                 o.frequency.setValueAtTime(880, audioCtx.currentTime);
                 g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                // FIXED: Removed the stray 'f' from the 0.2 parameter duration value
                 g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
                 o.start(); o.stop(audioCtx.currentTime + 0.2);
             }, i * 120);
@@ -81,13 +82,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 socket.on('number-called', (data) => {
     playSound('draw');
     
-    // Get the correct letter for the called number
     const letter = getBingoLetter(data.current);
-    
-    // Combine the letter and number on the main TV ball display (e.g., B-12)
     document.getElementById('currentBall').innerText = `${letter}-${data.current}`;
     
-    // Highlight the number on the master background board mapping grid
     const activeBall = document.getElementById(`ball-${data.current}`);
     if (activeBall) {
         activeBall.classList.add('called');
