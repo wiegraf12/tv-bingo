@@ -133,6 +133,25 @@ io.on('connection', (socket) => {
         });
     });
 
+// 5. TV Host requests to wipe states and start a clean match round
+    socket.on('reset-game', (roomId) => {
+        const room = rooms[roomId];
+        if (!room || room.tvSocketId !== socket.id) return;
+
+        // Wipe tracked numeric data streams cleanly
+        room.calledNumbers = [];
+
+        // Generate brand new randomized board sets for every connected player card
+        for (const playerId in room.players) {
+            room.players[playerId].card = generateBingoCard();
+            // Fire layout sync blocks directly out to mobile phone lines
+            io.to(playerId).emit('game-joined', { roomId, card: room.players[playerId].card });
+        }
+
+        // Inform the TV dashboard map structure to wipe color layouts cleanly
+        io.to(roomId).emit('game-was-reset');
+    });
+
     // Handle Disconnections
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
