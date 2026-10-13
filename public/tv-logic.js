@@ -1,9 +1,4 @@
-// FIXED: Forcing secure WSS protocol over Render proxies
-const socket = io(window.location.origin, {
-    transports: ['websocket', 'polling'],
-    secure: true
-});
-
+const socket = io();
 let currentRoomId = null;
 let audioCtx = null;
 
@@ -39,14 +34,7 @@ function playSound(type) {
     }
 }
 
-function getBingoLetter(num) {
-    if (num <= 15) return 'B';
-    if (num <= 30) return 'I';
-    if (num <= 45) return 'N';
-    if (num <= 60) return 'G';
-    return 'O';
-}
-
+// Draw the master 75 board mapping elements
 const bingoBoard = document.getElementById('bingoBoard');
 function generateBoardGrid() {
     bingoBoard.innerHTML = "";
@@ -75,6 +63,7 @@ document.getElementById('callBtn').addEventListener('click', () => {
     document.getElementById('bingoAlert').style.display = 'none';
 });
 
+// Added Action Key Listeners to handle clearing active maps and sending data requests
 document.getElementById('resetBtn').addEventListener('click', () => {
     if (currentRoomId && confirm("Are you sure you want to clear the board and start a new round?")) {
         socket.emit('reset-game', currentRoomId);
@@ -83,13 +72,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 socket.on('number-called', (data) => {
     playSound('draw');
-    const letter = getBingoLetter(data.current);
-    document.getElementById('currentBall').innerText = `${letter}-${data.current}`;
-    
+    document.getElementById('currentBall').innerText = data.current;
     const activeBall = document.getElementById(`ball-${data.current}`);
-    if (activeBall) {
-        activeBall.classList.add('called');
-    }
+    if (activeBall) activeBall.classList.add('called');
 });
 
 socket.on('bingo-claimed', (data) => {
@@ -99,6 +84,7 @@ socket.on('bingo-claimed', (data) => {
     alertBox.style.display = 'flex';
 });
 
+// Resets layout visibility and clears out tracking colors instantly
 socket.on('game-was-reset', () => {
     document.getElementById('currentBall').innerText = '--';
     document.getElementById('bingoAlert').style.display = 'none';
