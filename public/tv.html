@@ -91,9 +91,9 @@
         }
         .main-content {
             display: grid;
-            grid-template-rows: 240px 1fr;
+            grid-template-rows: 240px 1fr auto;
             padding: 40px;
-            gap: 32px;
+            gap: 24px;
             background: #1c2833; 
             border: 15px solid #3d2314; 
             box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
@@ -168,6 +168,31 @@
             border: 2px solid #f39c12;
             transform: scale(1.1);
         }
+        /* Bottom Control Panel & D-Pad focus styling */
+        .control-panel {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 10px;
+        }
+        .btn-reset {
+            background: #7f8c8d;
+            color: #fff;
+            border: 2px solid #bdc3c7;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            font-family: 'Fredoka One', cursive;
+            border-radius: 8px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .btn-reset:focus {
+            background: #e74c3c;
+            border-color: #fff;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(231, 76, 60, 0.6);
+        }
         @keyframes shakeAlert {
             0% { transform: rotate(-1deg); }
             100% { transform: rotate(1deg); }
@@ -194,9 +219,13 @@
             <div class="alert-banner" id="bingoAlert">🎁 BINGO! WE HAVE A WINNER! 🎁</div>
         </div>
         <div class="board-container" id="bingoBoard"></div>
+        
+        <!-- Added structural footer container holding the reset actions layout -->
+        <div class="control-panel">
+            <button class="btn-reset" id="resetBtn">RESET ROUND</button>
+        </div>
     </div>
 
-    <!-- Links directly to your script processing engine file -->
     <script src="/tv-logic.js"></script>
 </body>
 </html>
