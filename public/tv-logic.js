@@ -1,4 +1,9 @@
-const socket = io();
+// FIXED: Forcing secure WSS protocol over Render proxies
+const socket = io(window.location.origin, {
+    transports: ['websocket', 'polling'],
+    secure: true
+});
+
 let currentRoomId = null;
 let audioCtx = null;
 
@@ -27,7 +32,6 @@ function playSound(type) {
                 o.type = 'triangle';
                 o.frequency.setValueAtTime(880, audioCtx.currentTime);
                 g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                // FIXED: Removed the stray 'f' from the 0.2 parameter duration value
                 g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
                 o.start(); o.stop(audioCtx.currentTime + 0.2);
             }, i * 120);
@@ -35,7 +39,6 @@ function playSound(type) {
     }
 }
 
-// Helper function to figure out the correct Bingo letter based on standard ranges
 function getBingoLetter(num) {
     if (num <= 15) return 'B';
     if (num <= 30) return 'I';
@@ -44,7 +47,6 @@ function getBingoLetter(num) {
     return 'O';
 }
 
-// Draw the master 75 board mapping elements
 const bingoBoard = document.getElementById('bingoBoard');
 function generateBoardGrid() {
     bingoBoard.innerHTML = "";
@@ -81,7 +83,6 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 socket.on('number-called', (data) => {
     playSound('draw');
-    
     const letter = getBingoLetter(data.current);
     document.getElementById('currentBall').innerText = `${letter}-${data.current}`;
     
